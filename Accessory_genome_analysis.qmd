@@ -29,20 +29,23 @@ library(performance)
 ```{r Roary_core_accessory, results = 'hide'}
 setwd("~/STEC_139/Panaroo_bakta")
 
-# lets try combining column 1 and 3 togther as column 1 is all unique, but column 3 gives the actual annotation. 
+# lets try combining column 1 and 3 together as column 1 is all unique, but column 3 gives the actual annotation. 
 
 # Load Panaroo matrix
 gene_matrix <- read.csv("~/STEC_139/Panaroo_bakta/gene_presence_absence_panaroo.csv", stringsAsFactors = FALSE,  # prevent factor conversion
   check.names = FALSE       # prevents R from changing isolate names
 )
 
+# combining columns 1 and 3 making new variable called full_name
 gene_matrix$full_name<-paste(gene_matrix$Gene, gene_matrix$Annotation)
 
 gene_reordered<-gene_matrix[c("full_name", setdiff(names(gene_matrix), "full_name"))]
 print(gene_reordered)
 
+# Save it to make things easier
 write.csv(gene_reordered, "gene_reordered.csv", row.names = FALSE)
 
+# ok, lets load in the new matrix
 gene_reordered_matrix <- read.csv(
   "gene_reordered.csv",
   row.names = 1,       # first column is gene names
@@ -50,9 +53,10 @@ gene_reordered_matrix <- read.csv(
   check.names = FALSE       # prevents R from changing isolate names
 )
 
+# the isolate names are werid, so lets sort those out
 colnames(gene_reordered_matrix) <- sub("^fix_", "", colnames(gene_reordered_matrix))
 
-# Idegene_matrix# Identify isolate columns
+# Id gene_matrix identifing isolate columns
 isolate_cols <- grep("^EcCa", colnames(gene_reordered_matrix))
 
 # Convert isolate columns to binary 0/1
@@ -81,7 +85,7 @@ summary(gene_reordered_matrix_binary$TotalCount)
 gene_reordered_matrix_core <- gene_reordered_matrix_core %>%
   select(-TotalCount)
 
-#Remove "_medaka" from header names
+#Remove "_medaka" and "fix" from header names - this was done above
 #gene_reordered_matrix_core <- gene_reordered_matrix_core%>%
  # rename_with(~gsub("_medaka$", "", .), ends_with("_medaka"))
 
@@ -136,7 +140,7 @@ transposed_accessory  <- transposed_accessory [order(rownames(transposed_accesso
 # Convert to dataframe if not already
 transposed_accessory_df <- as.data.frame(transposed_accessory)
 
-# Optional: add rownames as a column if you want it editable
+# Optional: add rownames as a column so editable
 transposed_accessory_df$Isolate_ID <- rownames(transposed_accessory_df)
 
 # Reorder so Isolate_ID is first column
@@ -146,7 +150,9 @@ transposed_accessory_df <- transposed_accessory_df %>%
 # Export to CSV
 write.csv(transposed_accessory_df, "~/STEC_139/Panaroo_bakta/transposed_accessory_for_excel.csv", row.names = FALSE)
 
-################
+############################
+## Double checking things ##
+############################
 
 
 # Number of isolates (columns before transpose)
@@ -166,7 +172,9 @@ missing_in_accessory
 ```
 
 ```{r accessory_data_setup}
+# Load in metadata, isolate IDs should be matching now
 metadata <- read.csv("~/STEC_139/Panaroo_bakta/metadata_Apr26.csv", header = TRUE, stringsAsFactors = FALSE)
+# The transposed 
 transposed_accessory_for_excel <- read.csv("~/STEC_139/Panaroo_bakta/transposed_accessory_for_excel.csv", stringsAsFactors=TRUE)
 
 # compute distance matrix
@@ -217,7 +225,11 @@ variance_explained <- round(100 * eig_values / sum(eig_values), 1)
 # Variance explained by PCoA1 and PCoA2
 variance_explained[1:2]
 
+##############
+## Plotting ##
+##############
 
+# SBI
 ggplot(pcoa_plot_data, aes(x = PCoA1, y = PCoA2, color = SBI)) +
   geom_point(size = 3) +
   theme_minimal() +
@@ -227,7 +239,7 @@ ggplot(pcoa_plot_data, aes(x = PCoA1, y = PCoA2, color = SBI)) +
     y = paste0("PCoA2 (", variance_explained[2], "%)")
   )
 
-
+# sample site
 ggplot(pcoa_plot_data, aes(x = PCoA1, y = PCoA2, color = Sample_site)) +
   geom_point(size = 3) +
   theme_minimal() +
@@ -239,6 +251,11 @@ ggplot(pcoa_plot_data, aes(x = PCoA1, y = PCoA2, color = Sample_site)) +
 ```
 
 ```{r signif_genes}
+
+##################
+## Signif genes ##
+##################
+
 accessory_binary <- transposed_accessory_for_excel %>%
   select(-Isolate_ID)
 
@@ -248,6 +265,7 @@ accessory_binary[] <- lapply(accessory_binary, function(x) as.numeric(x > 0))
 # Remove zero-variance genes
 accessory_binary_var <- accessory_binary[, apply(accessory_binary, 2, sd) > 0]
 
+# PC1 signif genes
 
 pc1_gene_cor <- apply(
   accessory_binary_var,
@@ -259,7 +277,7 @@ pc1_df <- data.frame(
 
 head(pc1_df, 10)
 
-
+# PC2 signif genes
 
 pc2_gene_cor <- apply(
   accessory_binary_var,
@@ -271,12 +289,17 @@ pc2_df <- data.frame(
 
 head(pc2_df, 10)
 
+# Lets save the files for easy access
 
 write.csv(pc1_df, "pc1_df.csv", row.names = FALSE)
 write.csv(pc2_df, "pc2_df.csv", row.names = FALSE)
 ```
 
 ```{r stx_genes}
+###############
+## stx genes ##
+###############
+
 # Find stx in a case insensitive manner
 stx_genes <- grep("stx", rownames(pc1_df), ignore.case = TRUE, value = TRUE)
 
@@ -286,8 +309,13 @@ print(selected_data_stx_genes)
 ```
 
 ```{r keeping_farm_84}
+##############
+## farm 84 ###
+##############
+
 str(transposed_accessory_for_excel)
 
+# Lets list the isolates induvidually, just so I make sure I have them all
 keep_isolates <- c(
 "EcCa531a","EcCa531b","EcCa531c","EcCa531d",
 "EcCa532a","EcCa533a",
@@ -310,12 +338,16 @@ keep_isolates <- c(
 "EcCa646a","EcCa646b","EcCa646c","EcCa646d_comb",
 "EcCa647a","EcCa647b","EcCa647c","EcCa647d"
 )
+
+# check we have them all
 length(keep_isolates)
 
+# make dataframe
 transposed_accessory_filtered <- transposed_accessory_for_excel[
   transposed_accessory_for_excel$Isolate_ID %in% keep_isolates, 
 ]
 
+# more checking
 nrow(transposed_accessory_filtered)
 
 setdiff(keep_isolates, rownames(transposed_accessory_for_excel))
@@ -323,6 +355,7 @@ setdiff(keep_isolates, rownames(transposed_accessory_for_excel))
 ```
 
 ```{r perm_farm84}
+# load in the corresponding metadata
 metadata_filtered <- read.csv("~/STEC_139/Panaroo_bakta/metadata_filtered.csv", header = TRUE, stringsAsFactors = FALSE)
 
 # compute distance matrix
@@ -372,6 +405,9 @@ variance_explained_filtered <- round(100 * eig_values_filtered / sum(eig_values_
 # Variance explained by first two axes
 variance_explained_filtered[1:2]
 
+##############
+## Plotting ##
+##############
 
 # Plot by SBI
 ggplot(pcoa_plot_data_filtered, aes(x = PCoA1, y = PCoA2, color = SBI)) +
@@ -411,11 +447,11 @@ accessory_binary_var_filtered <- accessory_binary_filtered[
   , apply(accessory_binary_filtered, 2, sd) > 0
 ]
 
+##################
+## Signif genes ##
+##################
 
-# ---------------------------
-# Correlation with PCoA axis 1
-# ---------------------------
-
+# PC1 signif genes
 pc1_gene_cor_filtered <- apply(
   accessory_binary_var_filtered,
   2,
@@ -430,11 +466,7 @@ pc1_df_filtered <- data.frame(
 
 head(pc1_df_filtered, 10)
 
-
-# ---------------------------
-# Correlation with PCoA axis 2
-# ---------------------------
-
+# PC2 signif genes
 pc2_gene_cor_filtered <- apply(
   accessory_binary_var_filtered,
   2,
@@ -450,16 +482,18 @@ pc2_df_filtered <- data.frame(
 head(pc2_df_filtered, 10)
 
 
-# ---------------------------
-# Save outputs
-# ---------------------------
-
+# Lets save the files for easy access
 write.csv(pc1_df_filtered, "~/STEC_139/Panaroo_bakta/pc1_df_filtered.csv", row.names = FALSE)
 write.csv(pc2_df_filtered, "~/STEC_139/Panaroo_bakta/pc2_df_filtered.csv", row.names = FALSE)
 
 ```
 
 ```{r stx_genes_farm84}
+###############
+## stx genes ##
+###############
+
+# where are they? 
 # Find stx in a case insensitive manner
 stx_genes_filtered <- grep("stx", rownames(pc1_df_filtered), ignore.case = TRUE, value = TRUE)
 
