@@ -1,0 +1,549 @@
+---
+title: "Accessory_genome_analysis"
+format: html
+editor: visual
+---
+
+Whole genome sequence data from 139 STEC O157 were included in the below analysis. This is based off Dr Sara Burgess's "AMR dairy calf project - modelling analysis". A gene presence absence matrix was generated using Roary (v.3.13.0), and the core and accessory genomes were extracted from the gene_presence_absence.csv, with data tied along the way based on what was needed for the functions.
+
+https://link.springer.com/article/10.1186/s12915-023-01562-w#Sec11 https://journals.asm.org/doi/10.1128/spectrum.00956-25 https://link.springer.com/article/10.1007/s10096-023-04600-1#Sec2 https://pmc.ncbi.nlm.nih.gov/articles/PMC12772303/#s2
+
+```{r libraries, message = FALSE, warning = FALSE}
+# Load libraries
+library(vegan)
+library(BiocManager)
+library(dplyr)
+library(tidyr)
+library(gtools)
+library(effects)
+library(sjstats)
+library(lme4)
+library(dbstats)
+library(ggplot2)
+library(glue)
+library(randomForest)
+library(car)
+library(performance)
+```
+
+```{r Roary_core_accessory, results = 'hide'}
+setwd("~/STEC_139/Panaroo_bakta")
+
+# lets try combining column 1 and 3 togther as column 1 is all unique, but column 3 gives the actual annotation. 
+
+# Load Panaroo matrix
+gene_matrix <- read.csv("~/STEC_139/Panaroo_bakta/gene_presence_absence_panaroo.csv", stringsAsFactors = FALSE,  # prevent factor conversion
+  check.names = FALSE       # prevents R from changing isolate names
+)
+
+gene_matrix$full_name<-paste(gene_matrix$Gene, gene_matrix$Annotation)
+
+gene_reordered<-gene_matrix[c("full_name", setdiff(names(gene_matrix), "full_name"))]
+print(gene_reordered)
+
+write.csv(gene_reordered, "gene_reordered.csv", row.names = FALSE)
+
+gene_reordered_matrix <- read.csv(
+  "gene_reordered.csv",
+  row.names = 1,       # first column is gene names
+  stringsAsFactors = FALSE,  # prevent factor conversion
+  check.names = FALSE       # prevents R from changing isolate names
+)
+
+colnames(gene_reordered_matrix) <- sub("^fix_", "", colnames(gene_reordered_matrix))
+
+# Idegene_matrix# Identify isolate columns
+isolate_cols <- grep("^EcCa", colnames(gene_reordered_matrix))
+
+# Convert isolate columns to binary 0/1
+gene_reordered_matrix_binary <- gene_reordered_matrix %>%
+  mutate(across(all_of(isolate_cols),
+                ~ ifelse(.x == "" | is.na(.x), 0, 1)))
+
+# Add TotalCount = number of isolates where gene is present
+gene_reordered_matrix_binary <- gene_reordered_matrix_binary %>%
+  mutate(TotalCount = rowSums(across(all_of(isolate_cols))))
+
+#The Roary default for the core genome is that 99% of the isolates must contain the gene therefore to be included in the core genome 138 of the genomes must have a gene
+139*0.99
+
+########
+##Core##
+########
+
+#Selecting those rows that are part of the core genome 
+gene_reordered_matrix_core<- gene_reordered_matrix_binary %>%
+  filter(TotalCount >= 138)
+
+summary(gene_reordered_matrix_binary$TotalCount)
+
+#Removing the the TotalCount column
+gene_reordered_matrix_core <- gene_reordered_matrix_core %>%
+  select(-TotalCount)
+
+#Remove "_medaka" from header names
+#gene_reordered_matrix_core <- gene_reordered_matrix_core%>%
+ # rename_with(~gsub("_medaka$", "", .), ends_with("_medaka"))
+
+colnames(gene_reordered_matrix_core) <- sub("^fix_", "", colnames(gene_reordered_matrix_core))
+
+# Re-identify isolate columns (names have changed)
+isolate_cols_core <- grep("^EcCa", colnames(gene_reordered_matrix_core))
+
+# Subset to isolate-only matrix
+core_binary_only <- gene_reordered_matrix_core[, isolate_cols_core]
+
+# Transpose
+transposed_core <- t(core_binary_only)
+
+# Reorder isolates to match metadata
+transposed_core <- transposed_core[order(rownames(transposed_core)), ]
+
+# Compute the distance matrix
+dist_matrix_core <- vegdist(transposed_core, method = "jaccard", binary = TRUE)
+
+
+#############
+##Accessory##
+#############
+
+#Selecting those rows that are part of the accessory genome
+gene_reordered_matrix_accessory <- gene_reordered_matrix_binary %>%
+  filter(TotalCount < 138)
+
+#Remove the TotalCount column
+gene_reordered_matrix_accessory <- gene_reordered_matrix_accessory %>%
+  select(-TotalCount)
+
+#Remove "_medaka" from header names
+gene_reordered_matrix_accessory <- gene_reordered_matrix_accessory%>%
+  rename_with(~gsub("_medaka$", "", .), ends_with("_medaka"))
+
+# Re-identify isolate columns (names have changed)
+isolate_cols_accessory <- grep("^EcCa", colnames(gene_reordered_matrix_accessory))
+
+# Subset to isolate-only matrix
+accessory_binary_only <- gene_reordered_matrix_accessory[, isolate_cols_accessory]
+
+#Transpose table so that columns become rows
+transposed_accessory <- t(accessory_binary_only)
+
+# Reorder isolates to match metadata
+transposed_accessory  <- transposed_accessory [order(rownames(transposed_accessory )), ]
+
+
+################
+# Convert to dataframe if not already
+transposed_accessory_df <- as.data.frame(transposed_accessory)
+
+# Optional: add rownames as a column if you want it editable
+transposed_accessory_df$Isolate_ID <- rownames(transposed_accessory_df)
+
+# Reorder so Isolate_ID is first column
+transposed_accessory_df <- transposed_accessory_df %>%
+  select(Isolate_ID, everything())
+
+# Export to CSV
+write.csv(transposed_accessory_df, "~/STEC_139/Panaroo_bakta/transposed_accessory_for_excel.csv", row.names = FALSE)
+
+################
+
+
+# Number of isolates (columns before transpose)
+ncol(accessory_binary_only)
+# Or after transpose (rows)
+nrow(transposed_accessory)
+
+
+# Original isolates
+all_isolates <- colnames(core_binary_only)  # original gene_reordered_matrix_binary columns
+# Isolates in accessory
+accessory_isolates <- colnames(accessory_binary_only)
+
+# Check which isolates are missing
+missing_in_accessory <- setdiff(all_isolates, accessory_isolates)
+missing_in_accessory
+```
+
+```{r accessory_data_setup}
+metadata <- read.csv("~/STEC_139/Panaroo_bakta/metadata_Apr26.csv", header = TRUE, stringsAsFactors = FALSE)
+transposed_accessory_for_excel <- read.csv("~/STEC_139/Panaroo_bakta/transposed_accessory_for_excel.csv", stringsAsFactors=TRUE)
+
+# compute distance matrix
+dist_matrix_accessory <- vegdist(transposed_accessory_for_excel %>% select(-Isolate_ID),
+                                 method = "jaccard", binary = TRUE)
+```
+
+```{r permanova_accessory}
+
+#Permanova of accessory genes
+set.seed(312)
+perm_accessory <- adonis2(dist_matrix_accessory ~ Sample_site , data = metadata, permutations = 1000, by = "margin")
+
+perm_accessory
+
+```
+
+```{r PCoA_accessory_analysis}
+# Number of isolates in distance matrix
+length(attr(dist_matrix_accessory, "Labels"))
+
+# Classical multidimensional scaling (PCoA)
+accessory_pcoa <- cmdscale(dist_matrix_accessory, eig = TRUE, k = 2)  # k = 2 for 2D
+
+# Make dataframe of PCoA coordinates
+pcoa_coords <- as.data.frame(accessory_pcoa$points)
+colnames(pcoa_coords) <- c("PCoA1", "PCoA2")
+
+# Add isolate IDs (Excel-corrected dataframe)
+pcoa_coords$Isolate_ID <- transposed_accessory_for_excel$Isolate_ID
+
+# Quick check
+head(pcoa_coords)
+
+# Ensure the metadata has the same Isolate_ID column
+pcoa_plot_data <- pcoa_coords %>%
+  left_join(metadata, by = "Isolate_ID")
+
+head(pcoa_plot_data)
+
+
+# Eigenvalues from PCoA
+eig_values <- accessory_pcoa$eig
+
+# Calculate proportion of variance for each axis
+variance_explained <- round(100 * eig_values / sum(eig_values), 1)
+
+# Variance explained by PCoA1 and PCoA2
+variance_explained[1:2]
+
+
+ggplot(pcoa_plot_data, aes(x = PCoA1, y = PCoA2, color = SBI)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(
+    title = "Accessory Genome PCoA",
+    x = paste0("PCoA1 (", variance_explained[1], "%)"),
+    y = paste0("PCoA2 (", variance_explained[2], "%)")
+  )
+
+
+ggplot(pcoa_plot_data, aes(x = PCoA1, y = PCoA2, color = Sample_site)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(
+    title = "Accessory Genome PCoA",
+    x = paste0("PCoA1 (", variance_explained[1], "%)"),
+    y = paste0("PCoA2 (", variance_explained[2], "%)")
+  )
+```
+
+```{r signif_genes}
+accessory_binary <- transposed_accessory_for_excel %>%
+  select(-Isolate_ID)
+
+# Ensure numeric 0/1
+accessory_binary[] <- lapply(accessory_binary, function(x) as.numeric(x > 0))
+
+# Remove zero-variance genes
+accessory_binary_var <- accessory_binary[, apply(accessory_binary, 2, sd) > 0]
+
+
+pc1_gene_cor <- apply(
+  accessory_binary_var,
+  2, function(x) cor(x, accessory_pcoa$points[, 1]))
+
+pc1_df <- data.frame(
+  Gene = names(pc1_gene_cor),
+  Correlation_with_PCoA1 = pc1_gene_cor) %>% arrange(desc(abs(Correlation_with_PCoA1)))
+
+head(pc1_df, 10)
+
+
+
+pc2_gene_cor <- apply(
+  accessory_binary_var,
+  2, function(x) cor(x, accessory_pcoa$points[, 2]))
+
+pc2_df <- data.frame(
+  Gene = names(pc2_gene_cor),
+  Correlation_with_PCoA2 = pc2_gene_cor) %>% arrange(desc(abs(Correlation_with_PCoA2)))
+
+head(pc2_df, 10)
+
+
+write.csv(pc1_df, "pc1_df.csv", row.names = FALSE)
+write.csv(pc2_df, "pc2_df.csv", row.names = FALSE)
+```
+
+```{r stx_genes}
+# Find stx in a case insensitive manner
+stx_genes <- grep("stx", rownames(pc1_df), ignore.case = TRUE, value = TRUE)
+
+selected_data_stx_genes <- pc1_df[stx_genes, ]
+
+print(selected_data_stx_genes)
+```
+
+```{r keeping_farm_84}
+str(transposed_accessory_for_excel)
+
+keep_isolates <- c(
+"EcCa531a","EcCa531b","EcCa531c","EcCa531d",
+"EcCa532a","EcCa533a",
+"EcCa534a","EcCa534b","EcCa534c","EcCa534d",
+"EcCa535a","EcCa535b","EcCa535c","EcCa535d",
+"EcCa536a","EcCa536b","EcCa536c","EcCa536d","EcCa536e",
+"EcCa539a",
+"EcCa540a","EcCa540b",
+"EcCa541a","EcCa541b","EcCa541c",
+"EcCa542a","EcCa542b","EcCa542c",
+"EcCa543a","EcCa543b","EcCa543c","EcCa543d",
+"EcCa626a","EcCa626b","EcCa626c","EcCa626d",
+"EcCa628a","EcCa629a_08",
+"EcCa630a","EcCa630b","EcCa630c","EcCa630d",
+"EcCa631a","EcCa631b",
+"EcCa632a","EcCa632b",
+"EcCa633a","EcCa633b","EcCa633c","EcCa633d",
+"EcCa637a",
+"EcCa645a","EcCa645b","EcCa645c",
+"EcCa646a","EcCa646b","EcCa646c","EcCa646d_comb",
+"EcCa647a","EcCa647b","EcCa647c","EcCa647d"
+)
+length(keep_isolates)
+
+transposed_accessory_filtered <- transposed_accessory_for_excel[
+  transposed_accessory_for_excel$Isolate_ID %in% keep_isolates, 
+]
+
+nrow(transposed_accessory_filtered)
+
+setdiff(keep_isolates, rownames(transposed_accessory_for_excel))
+
+```
+
+```{r perm_farm84}
+metadata_filtered <- read.csv("~/STEC_139/Panaroo_bakta/metadata_filtered.csv", header = TRUE, stringsAsFactors = FALSE)
+
+# compute distance matrix
+dist_matrix_accessory_filtered <- vegdist(transposed_accessory_filtered %>% select(-Isolate_ID),
+                                 method = "jaccard", binary = TRUE)
+
+#Permanova of accessory genes
+set.seed(312)
+perm_accessory <- adonis2(dist_matrix_accessory_filtered  ~ Sample_site , data = metadata_filtered, permutations = 1000, by = "margin")
+
+perm_accessory
+```
+
+```{r PCoA_farm84}
+# Number of isolates in distance matrix
+length(attr(dist_matrix_accessory_filtered, "Labels"))
+
+# Classical multidimensional scaling (PCoA)
+accessory_pcoa_filtered <- cmdscale(dist_matrix_accessory_filtered, eig = TRUE, k = 2)
+
+# Make dataframe of PCoA coordinates
+pcoa_coords_filtered <- as.data.frame(accessory_pcoa_filtered$points)
+colnames(pcoa_coords_filtered) <- c("PCoA1", "PCoA2")
+
+# Add isolate IDs (must match order of PCoA output)
+pcoa_coords_filtered$Isolate_ID <- transposed_accessory_filtered$Isolate_ID
+
+
+# Quick check
+head(pcoa_coords_filtered)
+
+
+# Join metadata
+pcoa_plot_data_filtered <- pcoa_coords_filtered %>%
+  left_join(metadata_filtered, by = "Isolate_ID")
+
+
+head(pcoa_plot_data_filtered)
+
+
+# Eigenvalues from PCoA
+eig_values_filtered <- accessory_pcoa_filtered$eig
+
+# Calculate proportion of variance
+variance_explained_filtered <- round(100 * eig_values_filtered / sum(eig_values_filtered), 1)
+
+# Variance explained by first two axes
+variance_explained_filtered[1:2]
+
+
+# Plot by SBI
+ggplot(pcoa_plot_data_filtered, aes(x = PCoA1, y = PCoA2, color = SBI)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(
+    title = "Accessory Genome PCoA (Filtered)",
+    x = paste0("PCoA1 (", variance_explained_filtered[1], "%)"),
+    y = paste0("PCoA2 (", variance_explained_filtered[2], "%)")
+  )
+
+
+# Plot by Sample_site
+ggplot(pcoa_plot_data_filtered, aes(x = PCoA1, y = PCoA2, color = Sample_site)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(
+    title = "Accessory Genome PCoA (Filtered)",
+    x = paste0("PCoA1 (", variance_explained_filtered[1], "%)"),
+    y = paste0("PCoA2 (", variance_explained_filtered[2], "%)")
+  )
+```
+
+```{r signif_genes_farm84}
+# Create binary accessory matrix (filtered)
+accessory_binary_filtered <- transposed_accessory_filtered %>%
+  select(-Isolate_ID)
+
+# Ensure numeric 0/1
+accessory_binary_filtered[] <- lapply(
+  accessory_binary_filtered,
+  function(x) as.numeric(x > 0)
+)
+
+# Remove zero-variance genes
+accessory_binary_var_filtered <- accessory_binary_filtered[
+  , apply(accessory_binary_filtered, 2, sd) > 0
+]
+
+
+# ---------------------------
+# Correlation with PCoA axis 1
+# ---------------------------
+
+pc1_gene_cor_filtered <- apply(
+  accessory_binary_var_filtered,
+  2,
+  function(x) cor(x, accessory_pcoa_filtered$points[, 1])
+)
+
+pc1_df_filtered <- data.frame(
+  Gene = names(pc1_gene_cor_filtered),
+  Correlation_with_PCoA1 = pc1_gene_cor_filtered
+) %>%
+  arrange(desc(abs(Correlation_with_PCoA1)))
+
+head(pc1_df_filtered, 10)
+
+
+# ---------------------------
+# Correlation with PCoA axis 2
+# ---------------------------
+
+pc2_gene_cor_filtered <- apply(
+  accessory_binary_var_filtered,
+  2,
+  function(x) cor(x, accessory_pcoa_filtered$points[, 2])
+)
+
+pc2_df_filtered <- data.frame(
+  Gene = names(pc2_gene_cor_filtered),
+  Correlation_with_PCoA2 = pc2_gene_cor_filtered
+) %>%
+  arrange(desc(abs(Correlation_with_PCoA2)))
+
+head(pc2_df_filtered, 10)
+
+
+# ---------------------------
+# Save outputs
+# ---------------------------
+
+write.csv(pc1_df_filtered, "~/STEC_139/Panaroo_bakta/pc1_df_filtered.csv", row.names = FALSE)
+write.csv(pc2_df_filtered, "~/STEC_139/Panaroo_bakta/pc2_df_filtered.csv", row.names = FALSE)
+
+```
+
+```{r stx_genes_farm84}
+# Find stx in a case insensitive manner
+stx_genes_filtered <- grep("stx", rownames(pc1_df_filtered), ignore.case = TRUE, value = TRUE)
+
+selected_data_stx_genes_filtered <- pc1_df[stx_genes, ]
+
+print(selected_data_stx_genes_filtered)
+```
+
+```{r alphadiv_farm84}
+library(vegan)
+library(dplyr)
+
+# Remove isolate ID column
+accessory_matrix <- transposed_accessory_filtered %>%
+  select(-Isolate_ID)
+
+# Ensure all columns are numeric
+accessory_matrix[] <- lapply(accessory_matrix, as.numeric)
+
+# Check structure
+str(accessory_matrix)
+
+# Richness
+richness <- rowSums(accessory_matrix)
+
+# Shannon diversity
+shannon_div <- diversity(accessory_matrix, index = "shannon")
+
+# Simpson diversity
+simpson_div <- diversity(accessory_matrix, index = "simpson")
+
+# Combine into dataframe
+diversity_results <- data.frame(
+  Isolate_ID = transposed_accessory_filtered$Isolate_ID,
+  Richness = richness,
+  Shannon = shannon_div,
+  Simpson = simpson_div
+)
+
+head(diversity_results)
+
+diversity_results <- diversity_results %>%
+  left_join(metadata_filtered, by = "Isolate_ID")
+
+ggplot(diversity_results,
+       aes(x = Sample_site,
+           y = Richness,
+           fill = Sample_site)) +
+  geom_boxplot() +
+  theme_minimal()
+
+ggplot(diversity_results,
+       aes(x = Sample_site,
+           y = Shannon,
+           fill = Sample_site)) +
+  geom_boxplot() +
+  theme_minimal()
+
+```
+
+```{r alphadiv_samplesite_farm84}
+diversity_summary <- diversity_results %>%
+  group_by(Sample_site) %>%
+  summarise(
+    n = n(),
+
+    Mean_Richness = round(mean(Richness), 2),
+    SD_Richness = round(sd(Richness), 2),
+
+    Mean_Shannon = round(mean(Shannon), 2),
+    SD_Shannon = round(sd(Shannon), 2),
+
+    Mean_Simpson = round(mean(Simpson), 2),
+    SD_Simpson = round(sd(Simpson), 2)
+  )
+
+diversity_summary
+
+kruskal.test(Richness ~ Sample_site,
+             data = diversity_results)
+
+kruskal.test(Shannon ~ Sample_site,
+             data = diversity_results)
+
+kruskal.test(Simpson ~ Sample_site,
+             data = diversity_results)
+```
