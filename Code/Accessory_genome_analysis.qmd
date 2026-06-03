@@ -252,8 +252,6 @@ ggplot(pcoa_plot_data, aes(x = PCoA1, y = PCoA2, color = Sample_site)) +
   )
 ```
 
-
-
 ### Significant genes
 
 ```{r signif_genes}
@@ -300,6 +298,7 @@ head(pc2_df, 10)
 write.csv(pc1_df, "~/STEC_139/Objective_2_pangenome_analysis/Data/pc1_df.csv", row.names = FALSE)
 write.csv(pc2_df, "~/STEC_139/Objective_2_pangenome_analysis/Data/pc2_df.csv", row.names = FALSE)
 ```
+
 ### Stx genes
 
 ```{r stx_genes}
@@ -332,8 +331,7 @@ perm_accessory
 
 ```
 
-
-## Farm 84 isolates 
+## Farm 84 isolates
 
 ```{r keeping_farm_84}
 ##############
@@ -640,5 +638,4 @@ perm_accessory <- adonis2(dist_matrix_accessory_filtered  ~ Sample_site , data =
 perm_accessory
 ```
 
-The permanova test results in a p-value of 0.004 (rounded to 3 decimal points), this shows that the sample site is linked to predicting the genes present in the accessory genome. 
-
+The permanova test results in a p-value of 0.004 (rounded to 3 decimal points), this shows that the sample site is linked to predicting the genes present in the accessory genome.
