@@ -642,6 +642,15 @@ set.seed(312)
 perm_accessory <- adonis2(dist_matrix_accessory_filtered  ~ Sample_site , data = metadata_filtered, permutations = 1000, by = "margin")
 
 perm_accessory
+
+permanova_table <- as.data.frame(perm_accessory)
+write.csv(permanova_table, file = "~/STEC_139/Objective_2_pangenome_analysis/Tables/permanova_results_farm84.csv", row.names = TRUE)
 ```
+
+|             | Df | SumOfSqs | R2       | F        | Pr(>F)      |
+|-------------|----|----------|----------|----------|-------------|
+| Sample_site | 4  | 0.909969 | 0.231993 | 4.304511 | 0.003996*** |
+| Residual    | 57 | 3.012435 | 0.768007 |          |             |
+| Total       | 61 | 3.922404 | 1        |          |             |
 
 The permanova test results in a p-value of 0.004 (rounded to 3 decimal points), this shows that the sample site is linked to predicting the genes present in the accessory genome.
