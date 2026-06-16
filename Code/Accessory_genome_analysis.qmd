@@ -388,6 +388,15 @@ dist_matrix_accessory_filtered <- vegdist(transposed_accessory_filtered %>% sele
                                  method = "jaccard", binary = TRUE)
 ```
 
+
+|   Concept   	|             Alpha diversity            	|        Beta diversity       	|
+|:-----------:	|:--------------------------------------:	|:---------------------------:	|
+| Level       	| Within isolate                         	| Between isolates            	|
+| Question    	| How many genes does each isolate have? 	| How different are isolates? 	|
+| Your metric 	| Richness, Shannon, Simpson             	| Jaccard distance            	|
+| Output      	| Boxplots, summaries                    	| PCoA, NMDS, clustering      	|
+
+
 #### ALPHA diversity
 
 Shannon and Simpson diversity tests.
@@ -539,8 +548,19 @@ Kruskal-Wallis chi-squared = 8.0652, df = 4, p-value = 0.08922
 
 H0: The richness distributions are the same across all sample sites.
 H1: The richness distributions are different across all sample sites.
+One overall test - omnibus test - so not multiple testing, but that means no pairwise comparisons. 
 
-P-value low the null must go. The p-value is not below the significance level of less than 0.05, so cannot reject the null hypothesis. Therefore the richness/variation of accessory genes does not differ significantly between sample sites. Accessory gene richness does not differ significantly among sample sites.
+P-value low the null must go (< 0.05). The p-value is not below the significance level of less than 0.05, so cannot reject the null hypothesis. Therefore the richness/variation of accessory genes does not differ significantly between sample sites. Accessory gene richness does not differ significantly among sample sites.
+
+chi-squared
+It measures how different the ranks are among groups.
+Small value - groups have similar ranks.
+Large value - groups have different ranks.
+
+Degrees of freedom 
+number of groups - 1
+
+This test does not account for multiple testing like the dunn test does. This is because only one hypothesis is preformed is there any difference amoung the groups. It does not control for the false discovery rate. 
 
 
 ``` {r do_they_really_not_differ}
@@ -552,8 +572,16 @@ dunnTest(Richness ~ Sample_site,
 ```
 H0: The distributions of the two groups are the same.
 
+Which specific groups differ? 
+
 Unadj p-values are not accounting for the presence of the other sample sites. This can be type 1 error. 
-The adjusted p-value accounts for the multiple testing. The fact that many comparisons are happening at once. he method = controls the false discovery rate. 
+The adjusted p-value accounts for the multiple testing. The fact that many comparisons are happening at once. The method = controls the false discovery rate. 
+
+Kruskal–Wallis:
+“Do sample sites differ in richness overall?”
+Dunn’s test:
+“Which sample sites differ in richness?”
+Only Dunn’s test needs adjusted p-values (BH, etc.).
 
 
 ### BETA diversity
