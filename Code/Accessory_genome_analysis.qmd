@@ -388,6 +388,177 @@ dist_matrix_accessory_filtered <- vegdist(transposed_accessory_filtered %>% sele
                                  method = "jaccard", binary = TRUE)
 ```
 
+#### ALPHA diversity
+
+Shannon and Simpson diversity tests.
+
+Alpha diversity ((\alpha )-diversity) is the mean species diversity within a particular area, habitat, or ecosystem at a local scale. It measures the diversity of a single community and is typically assessed by evaluating two core components: species richness (the total number of different species) and species evenness (how evenly the individuals are distributed among those species).
+
+```{r alphadiv_farm84}
+#####################
+## alpha diversity ##
+#####################
+
+library(vegan)
+library(dplyr)
+
+# Remove isolate ID column
+accessory_matrix <- transposed_accessory_filtered %>%
+  select(-Isolate_ID)
+
+# Ensure all columns are numeric
+accessory_matrix[] <- lapply(accessory_matrix, as.numeric)
+
+# Check structure
+str(accessory_matrix)
+
+# Richness (the number of accessory genes present)
+richness <- rowSums(accessory_matrix)
+#specnumber(accessory_matrix)
+
+#specnumber(accessory_matrix, groups = Sample_site)
+
+# Shannon diversity
+shannon_div <- diversity(accessory_matrix, index = "shannon")
+
+# Simpson diversity
+simpson_div <- diversity(accessory_matrix, index = "simpson")
+
+# Combine into dataframe
+diversity_results <- data.frame(
+  Isolate_ID = transposed_accessory_filtered$Isolate_ID,
+  Richness = richness,
+  Shannon = shannon_div,
+  Simpson = simpson_div
+)
+
+head(diversity_results)
+
+diversity_results <- diversity_results %>%
+  left_join(metadata_filtered, by = "Isolate_ID")
+
+##############
+## Plotting ##
+##############
+
+Sample_site_colours <- c(
+  "Farm"     = "#88ccee",
+  "Lairage" = "#44aa99",
+  "Hide"  = "#DDCC77",
+  "Pre_intervention" = "#cc6677",
+  "Post_intervention" = "#332288"
+)
+
+
+P_rich_84 <- ggplot(diversity_results,
+       aes(x = Sample_site,
+           y = Richness,
+           fill = Sample_site)) +
+  geom_boxplot() +
+   scale_fill_manual(values = Sample_site_colours) +
+  scale_x_discrete(limits = c("Farm", "Lairage", "Hide", "Pre_intervention", "Post_intervention")) +
+  labs(y = "Accessory gene richness (Counts of genes)") +
+  theme_minimal()
+
+P_rich_84
+
+ggsave("~/STEC_139/Objective_2_pangenome_analysis/Figures/P_rich_84.svg", plot = P_rich_84, width = 7, height = 5)
+
+ggplot(diversity_results,
+       aes(x = Sample_site,
+           y = Shannon,
+           fill = Sample_site)) +
+  geom_boxplot() +
+  theme_minimal()
+
+ggplot(diversity_results,
+       aes(x = Sample_site,
+           y = Simpson,
+           fill = Sample_site)) +
+  geom_boxplot() +
+  theme_minimal()
+
+```
+
+| Isolate | Gene1 | Gene2 | Gene3 | Gene4 | Richness |
+|:-------:|:-----:|:-----:|:-----:|:-----:|:--------:|
+| EcCa001 | 1     | 1     | 0     | 1     | 3        |
+| EcCa002 | 1     | 0     | 0     | 1     | 2        |
+
+For example the richness is the total number of genes per isolate. 
+
+EcCa001 = 3 accessory genes present
+EcCa002 = 2 accessory genes present
+
+So in the context of an accessory genome presence/absence matrix:
+
+Richness = number of accessory genes present
+Shannon diversity = incorporates both the number of genes and their relative abundances
+Simpson diversity = measures dominance/evenness of genes
+
+The boxplot then shows the richness per site in terms of the accessory genes of the isolates of that specific site, It is purely showing the difference in numbers not the variety or difference of the genes. This is looking at how many genes isolates contain. 
+
+```{r alphadiv_samplesite_farm84}
+diversity_summary <- diversity_results %>%
+  group_by(Sample_site) %>%
+  summarise(
+    n = n(),
+
+    Mean_Richness = round(mean(Richness), 2),
+    SD_Richness = round(sd(Richness), 2),
+
+    Mean_Shannon = round(mean(Shannon), 2),
+    SD_Shannon = round(sd(Shannon), 2),
+
+    Mean_Simpson = round(mean(Simpson), 2),
+    SD_Simpson = round(sd(Simpson), 2)
+  )
+
+diversity_summary
+
+kruskal.test(Richness ~ Sample_site,
+             data = diversity_results)
+
+kruskal.test(Shannon ~ Sample_site,
+             data = diversity_results)
+
+kruskal.test(Simpson ~ Sample_site,
+             data = diversity_results)
+
+cor(diversity_results$Richness,
+    diversity_results$Shannon)
+
+cor(diversity_results$Richness,
+    diversity_results$Simpson)
+```
+
+	Kruskal-Wallis rank sum test
+
+data:  Richness by Sample_site
+Kruskal-Wallis chi-squared = 8.0652, df = 4, p-value = 0.08922
+
+H0: The richness distributions are the same across all sample sites.
+H1: The richness distributions are different across all sample sites.
+
+P-value low the null must go. The p-value is not below the significance level of less than 0.05, so cannot reject the null hypothesis. Therefore the richness/variation of accessory genes does not differ significantly between sample sites. Accessory gene richness does not differ significantly among sample sites.
+
+
+``` {r do_they_really_not_differ}
+library(FSA)
+
+dunnTest(Richness ~ Sample_site,
+         data = diversity_results,
+         method = "bh")
+```
+H0: The distributions of the two groups are the same.
+
+Unadj p-values are not accounting for the presence of the other sample sites. This can be type 1 error. 
+The adjusted p-value accounts for the multiple testing. The fact that many comparisons are happening at once. he method = controls the false discovery rate. 
+
+
+### BETA diversity
+
+
 ### PCoA
 
 ```{r PCoA_farm84}
@@ -554,101 +725,7 @@ selected_data_stx_genes_filtered <- pc1_df[stx_genes, ]
 print(selected_data_stx_genes_filtered)
 ```
 
-#### ALPHA diversity
 
-Shannon and Simpson diversity tests.
-
-Alpha diversity ((\alpha )-diversity) is the mean species diversity within a particular area, habitat, or ecosystem at a local scale. It measures the diversity of a single community and is typically assessed by evaluating two core components: species richness (the total number of different species) and species evenness (how evenly the individuals are distributed among those species).
-
-```{r alphadiv_farm84}
-#####################
-## alpha diversity ##
-#####################
-
-library(vegan)
-library(dplyr)
-
-# Remove isolate ID column
-accessory_matrix <- transposed_accessory_filtered %>%
-  select(-Isolate_ID)
-
-# Ensure all columns are numeric
-accessory_matrix[] <- lapply(accessory_matrix, as.numeric)
-
-# Check structure
-str(accessory_matrix)
-
-# Richness
-richness <- rowSums(accessory_matrix)
-
-# Shannon diversity
-shannon_div <- diversity(accessory_matrix, index = "shannon")
-
-# Simpson diversity
-simpson_div <- diversity(accessory_matrix, index = "simpson")
-
-# Combine into dataframe
-diversity_results <- data.frame(
-  Isolate_ID = transposed_accessory_filtered$Isolate_ID,
-  Richness = richness,
-  Shannon = shannon_div,
-  Simpson = simpson_div
-)
-
-head(diversity_results)
-
-diversity_results <- diversity_results %>%
-  left_join(metadata_filtered, by = "Isolate_ID")
-
-##############
-## Plotting ##
-##############
-
-ggplot(diversity_results,
-       aes(x = Sample_site,
-           y = Richness,
-           fill = Sample_site)) +
-  geom_boxplot() +
-  theme_minimal()
-
-ggplot(diversity_results,
-       aes(x = Sample_site,
-           y = Shannon,
-           fill = Sample_site)) +
-  geom_boxplot() +
-  theme_minimal()
-
-```
-
-```{r alphadiv_samplesite_farm84}
-diversity_summary <- diversity_results %>%
-  group_by(Sample_site) %>%
-  summarise(
-    n = n(),
-
-    Mean_Richness = round(mean(Richness), 2),
-    SD_Richness = round(sd(Richness), 2),
-
-    Mean_Shannon = round(mean(Shannon), 2),
-    SD_Shannon = round(sd(Shannon), 2),
-
-    Mean_Simpson = round(mean(Simpson), 2),
-    SD_Simpson = round(sd(Simpson), 2)
-  )
-
-diversity_summary
-
-kruskal.test(Richness ~ Sample_site,
-             data = diversity_results)
-
-kruskal.test(Shannon ~ Sample_site,
-             data = diversity_results)
-
-kruskal.test(Simpson ~ Sample_site,
-             data = diversity_results)
-```
-
-### BETA diversity
 
 This is the PERMANOVA and PERMdisp tests. It measures the change or turnover of species composition across different ecosystems, habitats, or geographic regions.
 
