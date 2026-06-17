@@ -583,6 +583,37 @@ Dunn’s test:
 “Which sample sites differ in richness?”
 Only Dunn’s test needs adjusted p-values (BH, etc.).
 
+Warning :Sample_site was coerced to a factor.
+  Kruskal-Wallis rank sum test
+
+data: x and g
+Kruskal-Wallis chi-squared = 8.0652, df = 4, p-value = 0.09
+
+
+                      Dunn's Pairwise Comparison of x by g                      
+                              (Benjamini-Hochberg)                              
+
+Col Mean-│
+Row Mean │       Farm       Hide    Lairage   Post_int
+─────────┼────────────────────────────────────────────
+    Hide │   0.081099
+         │     1.0000 
+         │
+ Lairage │   2.453916   2.380814
+         │     0.1413     0.0864 
+         │
+Post_int │   0.985162   0.937332  -0.596914
+         │     0.6491     0.5810     0.6882 
+         │
+Pre_inte │   1.138260   1.078749  -0.810533  -0.061720
+         │     0.8500     0.7017     0.5966     0.9508 
+
+FDR = 0.05
+Reject Ho if adjusted p ≤ FDR with stopping rule, where (unadjusted) p = Pr(|Z| ≥ |z|)
+
+
+
+FDR = false discovery rate
 
 ### BETA diversity
 
