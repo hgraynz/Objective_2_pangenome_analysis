@@ -810,3 +810,26 @@ write.csv(permanova_table, file = "~/STEC_139/Objective_2_pangenome_analysis/Tab
 | Total       | 61 | 3.922404 | 1        |          |             |
 
 The permanova test results in a p-value of 0.004 (rounded to 3 decimal points), this shows that the sample site is linked to predicting the genes present in the accessory genome.
+
+### PermDISP
+
+```{r permdisp}
+# already have a distance matrix "dist_matrix_accessory_filtered" and jaccard distance was used 
+# reminder it is "metadata_filtered" to use
+
+disp <- betadisper(dist_matrix_accessory_filtered,
+                   group = metadata_filtered$Sample_site,
+                   type = "centroid")
+
+permutest(disp)
+
+TukeyHSD(disp)
+```
+Positive diff = first site is more dispersed.
+Negative diff = second site is more dispersed.
+Significant adjusted p-values indicate different dispersions.
+
+PERMANOVA significant, PERMDISP not significant - evidence that group centroids differ (usually the ideal situation).
+PERMANOVA significant, PERMDISP significant - some of the PERMANOVA signal could be due to differences in dispersion (spread) among sites, so interpretation requires more caution.
+PERMDISP significant + TukeyHSD significant - identifies which sites differ in accessory genome variability.
+
