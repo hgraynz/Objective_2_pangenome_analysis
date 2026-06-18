@@ -825,6 +825,11 @@ permutest(disp)
 
 TukeyHSD(disp)
 ```
+Permdisp interpretation: 
+Do some sample sites contain more diverse accessory genomes than others?
+H0: The multivariate dispersion (variability) is equal among groups.
+
+Tukey's test interpretation:
 Positive diff = first site is more dispersed.
 Negative diff = second site is more dispersed.
 Significant adjusted p-values indicate different dispersions.
