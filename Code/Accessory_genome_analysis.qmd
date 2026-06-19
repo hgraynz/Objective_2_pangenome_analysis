@@ -823,7 +823,11 @@ disp <- betadisper(dist_matrix_accessory_filtered,
 
 permutest(disp)
 
-TukeyHSD(disp)
+TH<-TukeyHSD(disp)
+
+tukey_df <- as.data.frame(TH$group)
+
+Tukey_table <- as.data.frame(TH)
 ```
 Permdisp interpretation: 
 Do some sample sites contain more diverse accessory genomes than others?
