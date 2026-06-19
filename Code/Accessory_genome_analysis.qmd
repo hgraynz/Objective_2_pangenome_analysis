@@ -826,6 +826,7 @@ permutest(disp)
 TH<-TukeyHSD(disp)
 
 tukey_df <- as.data.frame(TH$group)
+tukey_df$`p adj` <- sprintf("%.4f", tukey_df$`p adj`)
 
 Tukey_table <- as.data.frame(TH)
 ```
