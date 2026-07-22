@@ -695,12 +695,19 @@ P_1_84 <- ggplot(pcoa_plot_data_filtered, aes(x = PCoA1_jit, y = PCoA2_jit, colo
 P_1_84
 ggsave("~/STEC_139/Objective_2_pangenome_analysis/Figures/P_1_84.svg", plot = P_1_84, width = 7, height = 5)
 
+
 Sample_site_colours <- c(
   "Farm"     = "#88ccee",
   "Lairage" = "#44aa99",
   "Hide"  = "#DDCC77",
   "Pre_intervention" = "#cc6677",
   "Post_intervention" = "#332288"
+)
+
+# Set factor order so legend follows Farm -> Lairage -> Hide -> Pre -> Post
+pcoa_plot_data_filtered$Sample_site <- factor(
+  pcoa_plot_data_filtered$Sample_site,
+  levels = c("Farm", "Lairage", "Hide", "Pre_intervention", "Post_intervention")
 )
 
 # Plot by Sample_site
@@ -714,8 +721,10 @@ P_2_84 <- ggplot(pcoa_plot_data_filtered, aes(x = PCoA1_jit, y = PCoA2_jit, colo
     x = paste0("Axis.1 [", variance_explained_filtered[1], "%]"),
     y = paste0("Axis.2 [", variance_explained_filtered[2], "%]")
   )
+
 P_2_84
 ggsave("~/STEC_139/Objective_2_pangenome_analysis/Figures/P_2_84.svg", plot = P_2_84, width = 7, height = 5)
+
 ```
 
 ### Significant genes
