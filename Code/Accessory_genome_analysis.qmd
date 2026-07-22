@@ -28,6 +28,7 @@ library(glue)
 library(randomForest)
 library(car)
 library(performance)
+library(colorspace)
 ```
 
 ### Seperating core and accessory genomes
@@ -459,13 +460,21 @@ Sample_site_colours <- c(
 )
 
 
+Sample_site_colours_dark <- darken(Sample_site_colours, amount = 0.3)
+
+diversity_results$Sample_site <- factor(
+  diversity_results$Sample_site,
+  levels = c("Farm", "Lairage", "Hide", "Pre_intervention", "Post_intervention")
+)
+
 P_rich_84 <- ggplot(diversity_results,
        aes(x = Sample_site,
            y = Richness,
            fill = Sample_site)) +
-  geom_boxplot() +
-   scale_fill_manual(values = Sample_site_colours) +
-  scale_x_discrete(limits = c("Farm", "Lairage", "Hide", "Pre_intervention", "Post_intervention")) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_jitter(aes(color = Sample_site), width = 0.15, height = 0, size = 2, alpha = 0.8) +
+  scale_fill_manual(values = Sample_site_colours) +
+  scale_color_manual(values = Sample_site_colours_dark) +
   labs(y = "Accessory gene richness (Counts of genes)") +
   theme_minimal()
 
