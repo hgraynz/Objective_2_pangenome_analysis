@@ -643,18 +643,13 @@ colnames(pcoa_coords_filtered) <- c("PCoA1", "PCoA2")
 # Add isolate IDs (must match order of PCoA output)
 pcoa_coords_filtered$Isolate_ID <- transposed_accessory_filtered$Isolate_ID
 
-
 # Quick check
 head(pcoa_coords_filtered)
-
 
 # Join metadata
 pcoa_plot_data_filtered <- pcoa_coords_filtered %>%
   left_join(metadata_filtered, by = "Isolate_ID")
-
-
 head(pcoa_plot_data_filtered)
-
 
 # Eigenvalues from PCoA
 eig_values_filtered <- accessory_pcoa_filtered$eig
@@ -665,21 +660,30 @@ variance_explained_filtered <- round(100 * eig_values_filtered / sum(eig_values_
 # Variance explained by first two axes
 variance_explained_filtered[1:2]
 
+# --- Fixed jitter, computed once, used in every plot ---
+set.seed(1234)
+jitter_amount_x <- 0.08 * diff(range(pcoa_plot_data_filtered$PCoA1))
+jitter_amount_y <- 0.08 * diff(range(pcoa_plot_data_filtered$PCoA2))
+
+pcoa_plot_data_filtered$PCoA1_jit <- pcoa_plot_data_filtered$PCoA1 +
+  runif(nrow(pcoa_plot_data_filtered), -jitter_amount_x, jitter_amount_x)
+pcoa_plot_data_filtered$PCoA2_jit <- pcoa_plot_data_filtered$PCoA2 +
+  runif(nrow(pcoa_plot_data_filtered), -jitter_amount_y, jitter_amount_y)
+
 ##############
 ## Plotting ##
 ##############
 
 # setting SBI colours
 SBI_colours <- c(
-  "AWY2a"     = "#2CA02C",
-  "AY2a" = "#1F77B4",
+  "AWY2a" = "#2CA02C",
+  "AY2a"  = "#1F77B4",
   "SY2c"  = "#FFBB78"
 )
 
-
 # Plot by SBI
-P_1_84<-ggplot(pcoa_plot_data_filtered, aes(x = PCoA1, y = PCoA2, color = SBI)) +
-  geom_jitter(width = 0.05, height = 0.05, size = 3, alpha = 0.8) +
+P_1_84 <- ggplot(pcoa_plot_data_filtered, aes(x = PCoA1_jit, y = PCoA2_jit, color = SBI)) +
+  geom_point(size = 3, alpha = 0.8) +
   stat_ellipse(aes(fill = SBI), geom = "polygon", alpha = 0.2, type = "norm") +
   scale_color_manual(values = SBI_colours) +
   scale_fill_manual(values = SBI_colours) +
@@ -688,8 +692,8 @@ P_1_84<-ggplot(pcoa_plot_data_filtered, aes(x = PCoA1, y = PCoA2, color = SBI)) 
     x = paste0("Axis.1 [", variance_explained_filtered[1], "%]"),
     y = paste0("Axis.2 [", variance_explained_filtered[2], "%]")
   )
-
 P_1_84
+ggsave("~/STEC_139/Objective_2_pangenome_analysis/Figures/P_1_84.svg", plot = P_1_84, width = 7, height = 5)
 
 Sample_site_colours <- c(
   "Farm"     = "#88ccee",
@@ -699,11 +703,9 @@ Sample_site_colours <- c(
   "Post_intervention" = "#332288"
 )
 
-ggsave("~/STEC_139/Objective_2_pangenome_analysis/Figures/P_1_84.svg", plot = P_1_84, width = 7, height = 5)
-
 # Plot by Sample_site
-P_2_84<-ggplot(pcoa_plot_data_filtered, aes(x = PCoA1, y = PCoA2, color = Sample_site)) +
-  geom_jitter(width = 0.15, height = 0.15, size = 3, alpha = 0.8) +
+P_2_84 <- ggplot(pcoa_plot_data_filtered, aes(x = PCoA1_jit, y = PCoA2_jit, color = Sample_site)) +
+  geom_point(size = 3, alpha = 0.8) +
   stat_ellipse(aes(fill = Sample_site), geom = "polygon", alpha = 0.2, type = "norm") +
   scale_color_manual(values = Sample_site_colours) +
   scale_fill_manual(values = Sample_site_colours) +
@@ -712,10 +714,8 @@ P_2_84<-ggplot(pcoa_plot_data_filtered, aes(x = PCoA1, y = PCoA2, color = Sample
     x = paste0("Axis.1 [", variance_explained_filtered[1], "%]"),
     y = paste0("Axis.2 [", variance_explained_filtered[2], "%]")
   )
-
 P_2_84
-
-ggsave("~/STEC_139/Objective_2_pangenome_analysis/Figures/P_2_84.svg", plot =P_2_84, width = 7, height = 5)
+ggsave("~/STEC_139/Objective_2_pangenome_analysis/Figures/P_2_84.svg", plot = P_2_84, width = 7, height = 5)
 ```
 
 ### Significant genes
